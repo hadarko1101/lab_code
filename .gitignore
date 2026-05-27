@@ -1,1 +1,5 @@
 *.csv
+*.png
+pycache/
+__pycache__/
+*.log

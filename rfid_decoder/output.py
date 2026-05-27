@@ -9,8 +9,8 @@ def print_result(result: dict) -> None:
     print(f"Modulation: {result['modulation']}")
     print(f"Bits decoded: {result['bit_count']}")
     if "plots" in result:
-        print(f"Original plot: {result['plots']['original']}")
-        print(f"Envelope plot: {result['plots']['envelope']}")
+        for name, path in result["plots"].items():
+            print(f"{name.replace('_', ' ').title()} plot: {path}")
 
     if result["protocol"] is None:
         print("Protocol: not detected")
