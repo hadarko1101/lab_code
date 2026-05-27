@@ -53,6 +53,11 @@ def load_csv_capture(path: str | Path, *, sample_rate_hz: float | None = None) -
     return CaptureSamples(voltage=voltage, sample_rate_hz=inferred_rate, time_seconds=time_seconds)
 
 
+def capture_from_picoscope(*args, **kwargs):
+    """PicoScope capture placeholder."""
+    raise NotImplementedError("PicoScope capture is not implemented yet")
+
+
 def _infer_sample_rate(time_seconds: np.ndarray) -> float:
     if time_seconds.size < 2:
         raise ValueError("Need at least two timestamps to infer sample rate")

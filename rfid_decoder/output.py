@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 
 def print_result(result: dict) -> None:
     print(f"Source: {result['source']}")
@@ -14,3 +16,7 @@ def print_result(result: dict) -> None:
 
     print(f"Protocol: {result['protocol']}")
     print(f"Card ID: {result['card_id']}")
+
+
+def result_to_json(result: dict) -> str:
+    return json.dumps(result, indent=2, sort_keys=True)

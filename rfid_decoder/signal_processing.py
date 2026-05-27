@@ -26,3 +26,22 @@ def lowpass_filter(signal: np.ndarray, sample_rate_hz: float, *, cutoff_hz: floa
     spectrum = np.fft.rfft(data)
     spectrum[freqs > cutoff_hz] = 0
     return np.fft.irfft(spectrum, n=data.size)
+
+
+def envelope_detect(signal: np.ndarray, *, smooth_samples: int = 25) -> np.ndarray:
+    rectified = np.abs(np.asarray(signal, dtype=float))
+    if smooth_samples <= 1:
+        return rectified
+    kernel = np.ones(smooth_samples, dtype=float) / smooth_samples
+    return np.convolve(rectified, kernel, mode="same")
+
+
+def slice_signal(signal: np.ndarray, *, threshold: float | None = None) -> np.ndarray:
+    data = np.asarray(signal, dtype=float)
+    if data.size == 0:
+        return np.array([], dtype=np.uint8)
+    if threshold is None:
+        low = float(np.percentile(data, 20))
+        high = float(np.percentile(data, 80))
+        threshold = (low + high) / 2.0
+    return (data >= threshold).astype(np.uint8)

@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import argparse
 
-from rfid_decoder.capture.csv_capture import load_csv_capture
-from rfid_decoder.decoding.fsk import decode_fsk
-from rfid_decoder.decoding.manchester import decode_manchester
-from rfid_decoder.output.console import print_result
-from rfid_decoder.output.json_output import result_to_json
-from rfid_decoder.protocols.autodetect import autodetect_protocol
-from rfid_decoder.signal_processing.envelope import envelope_detect
-from rfid_decoder.signal_processing.filters import bandpass_filter, lowpass_filter
-from rfid_decoder.signal_processing.slicer import slice_signal
+from rfid_decoder.capture import load_csv_capture
+from rfid_decoder.decoding import decode_fsk, decode_manchester
+from rfid_decoder.output import print_result, result_to_json
+from rfid_decoder.protocols import autodetect_protocol
+from rfid_decoder.signal_processing import (
+    bandpass_filter,
+    envelope_detect,
+    lowpass_filter,
+    slice_signal,
+)
 
 
 def decode_capture(
