@@ -45,7 +45,7 @@ def run_simple_capture():
         print("[OK] Signal Generator active: 125 kHz Sine Wave, 2V Peak-to-Peak")
 
         print("Allowing coil magnetic field to stabilize. Hold the card on the coil...")
-        time.sleep(1.5)
+        time.sleep(3)
 
         # 3. Configure Timebase for 2206B (Timebase 9 = 8.93 MS/s)
         timebase = 9
@@ -66,6 +66,10 @@ def run_simple_capture():
             chandle, timebase, maxSamples, ctypes.byref(timeIntervalns), 0, ctypes.byref(returnedMaxSamples), 0
         )
         assert_pico_ok(status["getTimebase2"])
+
+        # Calculate sample rate in MS/s (MegaSamples per second)
+        sample_rate_msps = 1000.0 / timeIntervalns.value
+        print(f"[OK] Timebase set to {timebase} (Sample Interval: {timeIntervalns.value:.2f} ns, Sample Rate: {sample_rate_msps:.4f} MS/s)")
 
         # 4. Set up Trigger (40 mV, correctly scaled to the 5V ADC range)
         trigger_adc = int((40.0 / (actual_range_volts * 1000)) * maxADC_value)
