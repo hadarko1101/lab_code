@@ -7,7 +7,7 @@ from picosdk.functions import assert_pico_ok
 from picosdk.ps2000a import ps2000a as ps
 
 # --- USER CONFIGURATION ---
-SAMPLE_TIME_MS = 10.0  # Duration to sample in milliseconds
+SAMPLE_TIME_MS = 500.0  # Duration to sample in milliseconds
 
 def run_simple_capture():
     print("="*80)

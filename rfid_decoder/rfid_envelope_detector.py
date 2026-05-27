@@ -87,9 +87,12 @@ def apply_envelope_detection(time_ms, voltages, cutoff_hz=15000.0):
 
 def plot_and_save_results(time_ms, rectified_volts, envelope, output_folder="results"):
     """
-    Plots the rectified high-frequency carrier and the demodulated low-pass envelope,
+    Plots the demodulated low-pass envelope,
     saving the high-resolution output visualization to the results folder.
     """
+    # Increase chunksize to prevent OverflowError when rendering large datasets
+    plt.rcParams['agg.path.chunksize'] = 10000
+
     # Ensure target output directory exists
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -98,10 +101,7 @@ def plot_and_save_results(time_ms, rectified_volts, envelope, output_folder="res
     print("Generating and saving the graph...")
     plt.figure(figsize=(14, 6))
 
-    # Plot the rectified carrier in the background (light blue, very thin)
-    plt.plot(time_ms, rectified_volts, color="#aec7e8", label="Rectified 125 kHz Carrier", linewidth=0.2)
-    
-    # Plot the smoothed envelope on top (bold red, thicker line)
+    # Plot the smoothed envelope (bold red, thicker line)
     plt.plot(time_ms, envelope, color="#d62728", label="15 kHz Demodulated Envelope", linewidth=1.5)
 
     # Style plot to resemble an oscilloscope output
