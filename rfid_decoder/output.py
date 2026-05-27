@@ -8,6 +8,9 @@ def print_result(result: dict) -> None:
     print(f"Sample rate: {result['sample_rate_hz']:.2f} Hz")
     print(f"Modulation: {result['modulation']}")
     print(f"Bits decoded: {result['bit_count']}")
+    if "plots" in result:
+        print(f"Original plot: {result['plots']['original']}")
+        print(f"Envelope plot: {result['plots']['envelope']}")
 
     if result["protocol"] is None:
         print("Protocol: not detected")

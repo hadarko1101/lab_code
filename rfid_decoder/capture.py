@@ -18,11 +18,13 @@ def load_csv_capture(path: str | Path, *, sample_rate_hz: float | None = None) -
     """Load CSV samples.
 
     Supported formats:
-    - two columns: time_seconds, voltage
+    - two columns: time, voltage
     - one column: voltage, with sample_rate_hz supplied
-    Header rows are allowed if they contain non-numeric text.
+    Header rows are allowed. Time units in headers like "Time (ms)" are converted
+    to seconds before sample-rate inference.
     """
     rows: list[list[float]] = []
+    header: list[str] | None = None
     with Path(path).open("r", newline="") as file:
         reader = csv.reader(file)
         for raw_row in reader:
@@ -31,6 +33,8 @@ def load_csv_capture(path: str | Path, *, sample_rate_hz: float | None = None) -
             try:
                 rows.append([float(cell.strip()) for cell in raw_row[:2] if cell.strip()])
             except ValueError:
+                if header is None:
+                    header = raw_row
                 continue
 
     if not rows:
@@ -47,7 +51,8 @@ def load_csv_capture(path: str | Path, *, sample_rate_hz: float | None = None) -
         raise ValueError("CSV must contain one or two numeric columns")
 
     paired_rows = [row for row in rows if len(row) == 2]
-    time_seconds = np.array([row[0] for row in paired_rows], dtype=float)
+    time_scale = _time_scale_from_header(header)
+    time_seconds = np.array([row[0] * time_scale for row in paired_rows], dtype=float)
     voltage = np.array([row[1] for row in paired_rows], dtype=float)
     inferred_rate = _infer_sample_rate(time_seconds)
     return CaptureSamples(voltage=voltage, sample_rate_hz=inferred_rate, time_seconds=time_seconds)
@@ -66,3 +71,17 @@ def _infer_sample_rate(time_seconds: np.ndarray) -> float:
     if median_delta <= 0:
         raise ValueError("Timestamps must be strictly increasing")
     return 1.0 / median_delta
+
+
+def _time_scale_from_header(header: list[str] | None) -> float:
+    if not header:
+        return 1.0
+
+    time_label = header[0].strip().lower()
+    if "(ms)" in time_label or "millisecond" in time_label:
+        return 1e-3
+    if "(us)" in time_label or "(µs)" in time_label or "microsecond" in time_label:
+        return 1e-6
+    if "(ns)" in time_label or "nanosecond" in time_label:
+        return 1e-9
+    return 1.0
