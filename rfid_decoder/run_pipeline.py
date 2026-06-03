@@ -18,8 +18,8 @@ EMPTY_LOOP_TIMEOUT = 5  # How many empty blocks before we reset the user to NONE
 # --- USER DATABASE ---
 # Replace these keys with the actual 45-bit Manchester payloads you decoded earlier!
 USER_DATABASE = {
-    "101010101010101010101010101010101010101010101": "Alice (Admin)",
-    "010101010101010101010101010101010101010101010": "Bob (Employee)",
+    "000000010100001110111101001100001110111101100": "FINK (gay)",
+    "000000010110001110111101001100001011010011101": "LEVI (Sigma)",
 }
 
 def _candidate_picosdk_dirs() -> list[Path]:
@@ -144,7 +144,6 @@ def main():
             time_ms = (np.arange(0, len(voltages)) * timeIntervalns.value) / 1e6
 
             # C. Signal Processing Pipeline
-            # We don't print inside the loop to avoid terminal spam
             sys.stdout.write(".") # Simple visual indicator that it's scanning
             sys.stdout.flush()
 
@@ -156,11 +155,13 @@ def main():
                 empty_loops += 1
             else:
                 # D. Bit Processing Pipeline
-                quantized_str = bit_proc.get_quantized_states(time_ms, digital_square_wave)
-                
-                # We silence the internal prints in BitProcessor for a clean UI
+                # We silence ALL internal prints in BitProcessor for a clean UI
                 import contextlib, io
                 with contextlib.redirect_stdout(io.StringIO()):
+                    
+                    # Moved this INSIDE the silencer block!
+                    quantized_str = bit_proc.get_quantized_states(time_ms, digital_square_wave)
+                    
                     raw_instances = bit_proc.decode_payload(quantized_str, sync_marker="000111", num_bits=45, max_phase_errors=2)
                     consensus_payload, total_matches = bit_proc.analyze_repetitions(raw_instances, max_hamming_errors=2)
 
