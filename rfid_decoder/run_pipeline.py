@@ -14,6 +14,7 @@ PICOSDK_DLL_NAME = "ps2000a.dll"
 # --- SYSTEM CONFIGURATION ---
 SAMPLE_TIME_MS = 100.0  # 100ms gives us ~10 frames per second, plenty of time to catch payloads
 EMPTY_LOOP_TIMEOUT = 5  # How many empty blocks before we reset the user to NONE
+AWG_STABILIZE_SECONDS = 3.0
 
 # --- USER DATABASE ---
 # Replace these keys with the actual 45-bit Manchester payloads you decoded earlier!
@@ -103,6 +104,8 @@ def main():
             chandle, 0, 2000000, 0, 125000, 125000, 0, 0, 0, 0, 0, 0, 0, 0, 0
         )
         assert_pico_ok(status["setSigGenBuiltIn"])
+        print(f"[*] Allowing coil field to stabilize for {AWG_STABILIZE_SECONDS:.1f}s...")
+        time.sleep(AWG_STABILIZE_SECONDS)
         
         # Configure Timebase
         timebase = 9
@@ -118,6 +121,11 @@ def main():
         cmaxSamples = ctypes.c_int32(maxSamples)
         overflow = ctypes.c_int16()
 
+        status["setDataBuffersA"] = ps.ps2000aSetDataBuffers(
+            chandle, 0, ctypes.byref(bufferMaxA), 0, maxSamples, 0, 0
+        )
+        assert_pico_ok(status["setDataBuffersA"])
+
         print("\n[*] Hardware initialized. Beginning live capture loop...\n")
 
         # ---------------------------------------------------------
@@ -125,6 +133,7 @@ def main():
         # ---------------------------------------------------------
         while True:
             # A. Capture Block
+            cmaxSamples.value = maxSamples
             status["runBlock"] = ps.ps2000aRunBlock(chandle, 0, maxSamples, timebase, 0, 0, 0, 0, 0)
             assert_pico_ok(status["runBlock"])
 
@@ -135,11 +144,15 @@ def main():
                 time.sleep(0.001) # Ultra-short sleep to keep CPU usage low
 
             # B. Retrieve Data
-            status["setDataBuffersA"] = ps.ps2000aSetDataBuffers(chandle, 0, ctypes.byref(bufferMaxA), 0, maxSamples, 0, 0)
             status["getValues"] = ps.ps2000aGetValues(chandle, 0, ctypes.byref(cmaxSamples), 1, 0, 0, ctypes.byref(overflow))
+            assert_pico_ok(status["getValues"])
+
+            if cmaxSamples.value <= 0:
+                empty_loops += 1
+                continue
             
             # Convert hardware arrays to Python Numpy arrays
-            raw_adc_data = np.ctypeslib.as_array(bufferMaxA)
+            raw_adc_data = np.ctypeslib.as_array(bufferMaxA)[:cmaxSamples.value]
             voltages = (raw_adc_data * 5.0) / maxADC_value
             time_ms = (np.arange(0, len(voltages)) * timeIntervalns.value) / 1e6
 
