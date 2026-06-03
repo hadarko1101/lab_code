@@ -23,6 +23,7 @@ class Wiegand35Result:
     card_number: int
     card_id: str
     raw_bits: str
+    repeat_count: int = 1
 
 
 def autodetect_protocol(bits: list[int]) -> ProtocolResult:
@@ -43,6 +44,7 @@ def autodetect_protocol(bits: list[int]) -> ProtocolResult:
                 "facility_code": wiegand.facility_code,
                 "card_number": wiegand.card_number,
                 "raw_bits": wiegand.raw_bits,
+                "repeat_count": wiegand.repeat_count,
             },
         )
 
@@ -91,19 +93,35 @@ def decode_wiegand35(bits: list[int]) -> Wiegand35Result | None:
     if len(bits) < 35:
         return None
 
+    candidates: dict[str, int] = {}
     for start in range(0, len(bits) - 34):
         frame = bits[start : start + 35]
         if not _valid_wiegand35_parity(frame):
             continue
-        facility = _bits_to_int(frame[1:13])
-        card_number = _bits_to_int(frame[13:34])
-        return Wiegand35Result(
-            facility_code=facility,
-            card_number=card_number,
-            card_id=f"{facility}:{card_number}",
-            raw_bits=_bits_to_string(frame),
-        )
-    return None
+        raw_bits = _bits_to_string(frame)
+        candidates[raw_bits] = candidates.get(raw_bits, 0) + 1
+
+    if not candidates:
+        return None
+
+    raw_bits, repeat_count = max(candidates.items(), key=lambda item: item[1])
+    frame = [int(bit) for bit in raw_bits]
+    facility = _bits_to_int(frame[1:13])
+    card_number = _bits_to_int(frame[13:34])
+    return Wiegand35Result(
+        facility_code=facility,
+        card_number=card_number,
+        card_id=f"{facility}:{card_number}",
+        raw_bits=raw_bits,
+        repeat_count=repeat_count,
+    )
+
+
+def decode_repeated_wiegand35(bits: list[int], *, min_repeats: int = 2) -> Wiegand35Result | None:
+    result = decode_wiegand35(bits)
+    if result is None or result.repeat_count < min_repeats:
+        return None
+    return result
 
 
 def _find_em4100_frame(bits: list[int]) -> list[int] | None:

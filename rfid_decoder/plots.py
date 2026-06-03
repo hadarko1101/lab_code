@@ -43,14 +43,23 @@ def save_signal_plot(
     *,
     title: str,
     ylabel: str = "Amplitude",
+    trim_fraction: float = 0.0,
 ) -> None:
     import matplotlib.pyplot as plt
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    plot_time = np.asarray(time_seconds)
+    plot_signal = np.asarray(signal)
+
+    if 0.0 < trim_fraction < 0.5 and plot_signal.size > 2:
+        trim = int(round(plot_signal.size * trim_fraction))
+        if trim > 0 and plot_signal.size > trim * 2:
+            plot_time = plot_time[trim:-trim]
+            plot_signal = plot_signal[trim:-trim]
 
     fig, axis = plt.subplots(figsize=(12, 5))
-    axis.plot(time_seconds, signal, linewidth=0.8)
+    axis.plot(plot_time, plot_signal, linewidth=0.8)
     axis.set_title(title)
     axis.set_xlabel("Time (s)")
     axis.set_ylabel(ylabel)

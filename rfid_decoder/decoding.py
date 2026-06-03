@@ -90,3 +90,58 @@ def decode_fsk(
         cycles = crossings / 2.0
         bits.append(1 if cycles >= expected_mid else 0)
     return bits
+
+
+def decode_hid_prox_from_edges(
+    digital: np.ndarray,
+    sample_rate_hz: float,
+    *,
+    min_pulse_us: float = 20,
+) -> tuple[list[int], dict]:
+    """Recover raw HID-like bits by classifying pulse widths from envelope edges.
+
+    Short and long edge intervals are separated with a two-cluster threshold. The
+    returned bits are the classified pulse-width stream, which is then suitable
+    for repeated 35-bit frame search.
+    """
+    data = np.asarray(digital, dtype=np.uint8)
+    if data.size < 2:
+        return [], {"reason": "not enough samples"}
+
+    edges = np.flatnonzero(np.diff(data) != 0) + 1
+    if edges.size < 3:
+        return [], {"reason": "not enough edges"}
+
+    widths_samples = np.diff(edges)
+    min_samples = max(1, int(round(sample_rate_hz * min_pulse_us / 1_000_000)))
+    widths_samples = widths_samples[widths_samples >= min_samples]
+    if widths_samples.size < 2:
+        return [], {"reason": "not enough valid pulse widths"}
+
+    short_center, long_center = _two_cluster_centers(widths_samples.astype(float))
+    threshold = (short_center + long_center) / 2.0
+    bits = [1 if width >= threshold else 0 for width in widths_samples]
+
+    return bits, {
+        "edge_count": int(edges.size),
+        "pulse_count": int(widths_samples.size),
+        "short_pulse_us": short_center / sample_rate_hz * 1_000_000,
+        "long_pulse_us": long_center / sample_rate_hz * 1_000_000,
+        "pulse_threshold_us": threshold / sample_rate_hz * 1_000_000,
+    }
+
+
+def _two_cluster_centers(values: np.ndarray) -> tuple[float, float]:
+    low = float(np.percentile(values, 25))
+    high = float(np.percentile(values, 75))
+
+    for _ in range(12):
+        threshold = (low + high) / 2.0
+        low_values = values[values <= threshold]
+        high_values = values[values > threshold]
+        if low_values.size == 0 or high_values.size == 0:
+            break
+        low = float(np.mean(low_values))
+        high = float(np.mean(high_values))
+
+    return (low, high) if low <= high else (high, low)
