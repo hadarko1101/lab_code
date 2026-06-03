@@ -1,15 +1,99 @@
 import ctypes
+import os
+from pathlib import Path
 import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from picosdk.functions import assert_pico_ok
-from picosdk.ps2000a import ps2000a as ps
+
+PICOSDK_DLL_NAME = "ps2000a.dll"
 
 # --- USER CONFIGURATION ---
-SAMPLE_TIME_MS = 500.0  # Duration to sample in milliseconds
+SAMPLE_TIME_MS = 50.0  # Duration to sample in milliseconds
+
+
+def _candidate_picosdk_dirs() -> list[Path]:
+    candidates: list[Path] = []
+
+    env_hints = (
+        os.environ.get("PICOSDK_DIR"),
+        os.environ.get("PICO_SDK_DIR"),
+        os.environ.get("PICOSCOPE_SDK_DIR"),
+    )
+    for hint in env_hints:
+        if hint:
+            candidates.append(Path(hint))
+
+    program_files = [
+        os.environ.get("ProgramFiles"),
+        os.environ.get("ProgramFiles(x86)"),
+    ]
+    relative_dirs = (
+        "Pico Technology\\SDK\\lib",
+        "Pico Technology\\SDK\\lib64",
+        "Pico Technology\\SDK\\lib\\x64",
+        "Pico Technology\\PicoScope 7 T&M Stable\\drivers",
+        "Pico Technology\\PicoScope 7 Automotive\\drivers",
+    )
+    for base in program_files:
+        if not base:
+            continue
+        for relative_dir in relative_dirs:
+            candidates.append(Path(base) / relative_dir)
+
+    seen: set[str] = set()
+    unique_candidates: list[Path] = []
+    for candidate in candidates:
+        resolved = str(candidate)
+        if resolved not in seen:
+            seen.add(resolved)
+            unique_candidates.append(candidate)
+    return unique_candidates
+
+
+def _prepare_picosdk_environment() -> list[Path]:
+    added_dirs: list[Path] = []
+    for candidate_dir in _candidate_picosdk_dirs():
+        dll_path = candidate_dir / PICOSDK_DLL_NAME
+        if not dll_path.exists():
+            continue
+        if hasattr(os, "add_dll_directory"):
+            os.add_dll_directory(str(candidate_dir))
+        path_value = os.environ.get("PATH", "")
+        path_entries = path_value.split(os.pathsep) if path_value else []
+        if str(candidate_dir) not in path_entries:
+            os.environ["PATH"] = str(candidate_dir) + os.pathsep + path_value
+        added_dirs.append(candidate_dir)
+    return added_dirs
+
+
+def _load_picosdk():
+    added_dirs = _prepare_picosdk_environment()
+    try:
+        from picosdk.functions import assert_pico_ok
+        from picosdk.ps2000a import ps2000a as ps
+    except Exception as exc:
+        searched_dirs = [str(path) for path in _candidate_picosdk_dirs()]
+        if added_dirs:
+            searched_note = "\n".join(f"  - {path}" for path in searched_dirs)
+            extra = f"\nChecked these PicoSDK locations:\n{searched_note}"
+        else:
+            searched_note = "\n".join(f"  - {path}" for path in searched_dirs)
+            extra = (
+                "\nNo usable PicoSDK driver was found automatically."
+                f"\nChecked these common locations:\n{searched_note}"
+            )
+        raise RuntimeError(
+            "Could not load PicoSDK driver 'ps2000a.dll'. "
+            "Install PicoScope 2000 Series drivers/SDK or set PICOSDK_DIR to the folder containing ps2000a.dll."
+            f"{extra}"
+        ) from exc
+    return ps, assert_pico_ok
 
 def run_simple_capture():
+    ps, assert_pico_ok = _load_picosdk()
+
     print("="*80)
     print(f"PicoScope 2206B: RFID Capture ({SAMPLE_TIME_MS} ms)")
     print("="*80)
@@ -112,7 +196,7 @@ def run_simple_capture():
         time_ms = (np.arange(0, len(voltages)) * timeIntervalns.value) / 1e6
 
         # Save to CSV file
-        csv_filename = "rfid_capture_data.csv"
+        csv_filename = "data_with_fink2_card.csv"
         print(f"Saving captured data to {csv_filename}...")
         df = pd.DataFrame({"Time (ms)": time_ms, "Voltage (V)": voltages})
         df.to_csv(csv_filename, index=False)
@@ -124,7 +208,7 @@ def run_simple_capture():
         
         # Adapt zoom window to sample time
         zoom_start = min(1.0, SAMPLE_TIME_MS * 0.1)
-        zoom_end = min(5.0, SAMPLE_TIME_MS)
+        zoom_end = min(3.0, SAMPLE_TIME_MS)
         if zoom_end <= zoom_start:
             zoom_start = 0.0
             zoom_end = SAMPLE_TIME_MS
@@ -167,4 +251,7 @@ def run_simple_capture():
             print(f"Error closing scope: {e}")
 
 if __name__ == "__main__":
-    run_simple_capture()
+    try:
+        run_simple_capture()
+    except RuntimeError as exc:
+        print(exc)
