@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, filtfilt
 
-def locate_csv_file(filename="rfid_capture_data.csv"):
+def locate_csv_file(filename="data_with_fink1_card.csv"):
     if os.path.exists(filename):
         return filename
     parent_path = os.path.join("..", filename)
@@ -110,7 +110,7 @@ def plot_and_save_results(time_ms, env1, env1_centered, final_envelope, output_f
     
     plt.show()
 
-def detect_and_plot_envelope(csv_filename="rfid_capture_data.csv", output_folder="results"):
+def detect_and_plot_envelope(csv_filename="data_with_fink1_card.csv", output_folder="results"):
     print("="*80)
     print("RFID 2-Stage Envelope Detection & Digital Filtering")
     print("="*80)
